@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, type = "webpage" } = await req.json();
 
     if (!prompt) {
       return new Response(
@@ -25,7 +25,57 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Generating page for prompt:", prompt);
+    console.log("Generating content for prompt:", prompt, "type:", type);
+
+    // Determine system prompt based on content type
+    let systemPrompt = "";
+    let userPrompt = "";
+
+    if (type === "portfolio") {
+      systemPrompt = `You are an expert web designer specializing in portfolio websites. Generate a complete, professional portfolio HTML page with inline CSS.
+
+Your response must include:
+1. A stunning hero section with name and tagline
+2. About Me section with professional bio
+3. Skills section with skill categories and proficiency levels
+4. Projects section with 3-4 featured projects (with descriptions)
+5. Contact section with email and social links
+6. Modern design with gradients, animations, and smooth scrolling
+7. Fully responsive layout
+8. Professional color scheme and typography
+
+Return ONLY the complete HTML code with inline CSS, no markdown, no explanations.`;
+      userPrompt = `Create a professional portfolio website for: ${prompt}`;
+    } else if (type === "presentation") {
+      systemPrompt = `You are an expert presentation designer. Generate a complete HTML presentation (slide deck) with inline CSS.
+
+Your response must include:
+1. 5-10 slides with navigation (next/prev buttons)
+2. Title slide with main heading
+3. Content slides with headings, bullet points, and visual hierarchy
+4. Professional design with consistent theme
+5. Smooth slide transitions
+6. Clean, readable typography
+7. Professional color scheme
+8. Responsive layout
+
+Return ONLY the complete HTML code with inline CSS for the presentation, no markdown, no explanations.`;
+      userPrompt = `Create a professional presentation about: ${prompt}`;
+    } else {
+      systemPrompt = `You are an expert web designer and developer. Generate beautiful, modern, and functional HTML pages based on user descriptions.
+
+Your response should include:
+1. A complete, valid HTML page with inline CSS
+2. Modern design with gradients, shadows, and smooth animations
+3. Responsive layout that works on all devices
+4. Clean, semantic HTML structure
+5. Professional typography and spacing
+6. Clear call-to-action elements
+7. Optimized for user experience
+
+Return ONLY the HTML code, no markdown, no explanations.`;
+      userPrompt = `Create a ${prompt}`;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -38,20 +88,11 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert web designer and developer. Generate beautiful, modern, and functional HTML pages based on user descriptions.
-            
-Your response should include:
-1. A complete, valid HTML page with inline CSS
-2. Modern design with gradients, shadows, and smooth animations
-3. Responsive layout that works on all devices
-4. Clean, semantic HTML structure
-5. Professional typography and spacing
-
-Return ONLY the HTML code, no markdown, no explanations.`,
+            content: systemPrompt,
           },
           {
             role: "user",
-            content: `Create a ${prompt}`,
+            content: userPrompt,
           },
         ],
       }),
@@ -84,6 +125,7 @@ Return ONLY the HTML code, no markdown, no explanations.`,
       JSON.stringify({
         content: generatedCode,
         code: generatedCode,
+        type: type,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

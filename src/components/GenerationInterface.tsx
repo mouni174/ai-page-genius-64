@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Wand2, Download, Code } from "lucide-react";
+import { Loader2, Wand2, Download, Code, FileText, Presentation, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+type ContentType = "webpage" | "portfolio" | "presentation";
+
 export const GenerationInterface = () => {
   const [prompt, setPrompt] = useState("");
+  const [contentType, setContentType] = useState<ContentType>("webpage");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
@@ -24,35 +27,45 @@ export const GenerationInterface = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-page", {
-        body: { prompt },
+        body: { prompt, type: contentType },
       });
 
       if (error) throw error;
 
       setGeneratedContent(data.content);
       setGeneratedCode(data.code);
-      toast.success("Page generated successfully!");
+      toast.success(`${contentType.charAt(0).toUpperCase() + contentType.slice(1)} generated successfully!`);
     } catch (error) {
       console.error("Generation error:", error);
-      toast.error("Failed to generate page. Please try again.");
+      toast.error("Failed to generate content. Please try again.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (format: "html" | "pdf") => {
     if (!generatedCode) return;
 
-    const blob = new Blob([generatedCode], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "generated-page.html";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Page exported successfully!");
+    if (format === "html") {
+      const blob = new Blob([generatedCode], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `generated-${contentType}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Exported as HTML successfully!");
+    } else if (format === "pdf") {
+      // For PDF export, open in new window so user can print to PDF
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(generatedCode);
+        newWindow.document.close();
+        toast.success("Opening in new window - Use Print to save as PDF");
+      }
+    }
   };
 
   const handleCopyCode = () => {
@@ -79,13 +92,54 @@ export const GenerationInterface = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Describe your page
+                  Content Type
+                </label>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <Button
+                    variant={contentType === "webpage" ? "default" : "outline"}
+                    onClick={() => setContentType("webpage")}
+                    className="w-full"
+                    disabled={isGenerating}
+                  >
+                    <Globe className="w-4 h-4 mr-2" />
+                    Webpage
+                  </Button>
+                  <Button
+                    variant={contentType === "portfolio" ? "default" : "outline"}
+                    onClick={() => setContentType("portfolio")}
+                    className="w-full"
+                    disabled={isGenerating}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Portfolio
+                  </Button>
+                  <Button
+                    variant={contentType === "presentation" ? "default" : "outline"}
+                    onClick={() => setContentType("presentation")}
+                    className="w-full"
+                    disabled={isGenerating}
+                  >
+                    <Presentation className="w-4 h-4 mr-2" />
+                    Slides
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Describe what you want to create
                 </label>
                 <Textarea
-                  placeholder="E.g., Create a personal portfolio page with a hero section, about me, and contact form..."
+                  placeholder={
+                    contentType === "portfolio"
+                      ? "E.g., John Doe, Full-stack Developer specializing in React and Node.js..."
+                      : contentType === "presentation"
+                      ? "E.g., Climate Change Impact - 5 slides covering causes, effects, and solutions..."
+                      : "E.g., Create a landing page for a fitness app with hero section and features..."
+                  }
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[300px] bg-background/50 border-primary/20 focus:border-primary/40"
+                  className="min-h-[240px] bg-background/50 border-primary/20 focus:border-primary/40"
                   disabled={isGenerating}
                 />
               </div>
@@ -104,7 +158,7 @@ export const GenerationInterface = () => {
                 ) : (
                   <>
                     <Wand2 className="mr-2 h-5 w-5" />
-                    Generate Page
+                    Generate {contentType.charAt(0).toUpperCase() + contentType.slice(1)}
                   </>
                 )}
               </Button>
@@ -125,16 +179,25 @@ export const GenerationInterface = () => {
                       className="border-primary/20"
                     >
                       <Code className="w-4 h-4 mr-2" />
-                      Copy Code
+                      Copy
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleExport}
+                      onClick={() => handleExport("html")}
                       className="border-primary/20"
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      Export
+                      HTML
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExport("pdf")}
+                      className="border-primary/20"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      PDF
                     </Button>
                   </div>
                 )}
