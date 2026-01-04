@@ -5,8 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Send } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, Send, CheckCircle } from "lucide-react";
+
+const suggestions = {
+  projectTitle: "Add a clear project title describing your work.",
+  problemStatement: "Describe the problem your project addresses.",
+  objectives: "List the main objectives of your project.",
+  technologyStack: "Include the technologies used in your project.",
+  methodology: "Explain your methodology or approach.",
+  results: "Add results or expected outcomes of your project.",
+};
 
 const AcademicReadinessCheck = () => {
   const navigate = useNavigate();
@@ -18,6 +26,7 @@ const AcademicReadinessCheck = () => {
     methodology: "",
     results: "",
   });
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -25,7 +34,7 @@ const AcademicReadinessCheck = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Form submitted successfully!");
+    setIsSubmitted(true);
     console.log("Submitted data:", formData);
   };
 
@@ -40,6 +49,15 @@ const AcademicReadinessCheck = () => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Generator
         </Button>
+
+        {isSubmitted && (
+          <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-primary" />
+            <p className="text-foreground font-medium">
+              Academic readiness check completed successfully.
+            </p>
+          </div>
+        )}
 
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
@@ -64,6 +82,11 @@ const AcademicReadinessCheck = () => {
               <p className="text-xs text-muted-foreground">
                 This becomes the main heading for your PPT, webpage hero section, or portfolio header.
               </p>
+              {isSubmitted && !formData.projectTitle.trim() && (
+                <p className="text-xs text-amber-500 mt-1">
+                  💡 {suggestions.projectTitle}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -78,6 +101,11 @@ const AcademicReadinessCheck = () => {
               <p className="text-xs text-muted-foreground">
                 Used as the introduction slide, "About" section, or project overview in portfolios.
               </p>
+              {isSubmitted && !formData.problemStatement.trim() && (
+                <p className="text-xs text-amber-500 mt-1">
+                  💡 {suggestions.problemStatement}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -92,6 +120,11 @@ const AcademicReadinessCheck = () => {
               <p className="text-xs text-muted-foreground">
                 Becomes bullet points in PPTs, feature highlights on webpages, or goals in portfolios.
               </p>
+              {isSubmitted && !formData.objectives.trim() && (
+                <p className="text-xs text-amber-500 mt-1">
+                  💡 {suggestions.objectives}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -106,6 +139,11 @@ const AcademicReadinessCheck = () => {
               <p className="text-xs text-muted-foreground">
                 Displayed as tech badges, skill icons, or tools section across all formats.
               </p>
+              {isSubmitted && !formData.technologyStack.trim() && (
+                <p className="text-xs text-amber-500 mt-1">
+                  💡 {suggestions.technologyStack}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -120,6 +158,11 @@ const AcademicReadinessCheck = () => {
               <p className="text-xs text-muted-foreground">
                 Forms the process flow slide, "How It Works" section, or approach details in portfolios.
               </p>
+              {isSubmitted && !formData.methodology.trim() && (
+                <p className="text-xs text-amber-500 mt-1">
+                  💡 {suggestions.methodology}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -134,6 +177,11 @@ const AcademicReadinessCheck = () => {
               <p className="text-xs text-muted-foreground">
                 Used for conclusion slides, results sections, or achievement highlights in portfolios.
               </p>
+              {isSubmitted && !formData.results.trim() && (
+                <p className="text-xs text-amber-500 mt-1">
+                  💡 {suggestions.results}
+                </p>
+              )}
             </div>
 
             <Button
