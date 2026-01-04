@@ -1,14 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Wand2, Download, Code, FileText, Presentation, Globe } from "lucide-react";
+import { Loader2, Wand2, Download, Code, FileText, Presentation, Globe, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 type ContentType = "webpage" | "portfolio" | "presentation";
 
 export const GenerationInterface = () => {
+  const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [contentType, setContentType] = useState<ContentType>("webpage");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -189,6 +191,15 @@ export const GenerationInterface = () => {
                     >
                       <Download className="w-4 h-4 mr-2" />
                       HTML
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => navigate("/academic-readiness")}
+                      className="bg-accent hover:bg-accent/90"
+                    >
+                      <ClipboardCheck className="w-4 h-4 mr-2" />
+                      Academic Check
                     </Button>
                     <Button
                       variant="outline"
