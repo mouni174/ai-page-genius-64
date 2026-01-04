@@ -61,6 +61,9 @@ const AcademicReadinessCheck = () => {
                 onChange={(e) => handleChange("projectTitle", e.target.value)}
                 className="bg-background/50 border-primary/20 focus:border-primary/40"
               />
+              <p className="text-xs text-muted-foreground">
+                This becomes the main heading for your PPT, webpage hero section, or portfolio header.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -72,6 +75,9 @@ const AcademicReadinessCheck = () => {
                 onChange={(e) => handleChange("problemStatement", e.target.value)}
                 className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
               />
+              <p className="text-xs text-muted-foreground">
+                Used as the introduction slide, "About" section, or project overview in portfolios.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -83,6 +89,9 @@ const AcademicReadinessCheck = () => {
                 onChange={(e) => handleChange("objectives", e.target.value)}
                 className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
               />
+              <p className="text-xs text-muted-foreground">
+                Becomes bullet points in PPTs, feature highlights on webpages, or goals in portfolios.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -94,6 +103,9 @@ const AcademicReadinessCheck = () => {
                 onChange={(e) => handleChange("technologyStack", e.target.value)}
                 className="bg-background/50 border-primary/20 focus:border-primary/40"
               />
+              <p className="text-xs text-muted-foreground">
+                Displayed as tech badges, skill icons, or tools section across all formats.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -105,6 +117,9 @@ const AcademicReadinessCheck = () => {
                 onChange={(e) => handleChange("methodology", e.target.value)}
                 className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
               />
+              <p className="text-xs text-muted-foreground">
+                Forms the process flow slide, "How It Works" section, or approach details in portfolios.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -116,6 +131,9 @@ const AcademicReadinessCheck = () => {
                 onChange={(e) => handleChange("results", e.target.value)}
                 className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
               />
+              <p className="text-xs text-muted-foreground">
+                Used for conclusion slides, results sections, or achievement highlights in portfolios.
+              </p>
             </div>
 
             <Button
