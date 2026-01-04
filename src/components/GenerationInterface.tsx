@@ -195,7 +195,13 @@ export const GenerationInterface = () => {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => navigate("/academic-readiness")}
+                      onClick={() => navigate("/academic-readiness", { 
+                        state: { 
+                          generatedContent: generatedCode,
+                          prompt: prompt,
+                          contentType: contentType
+                        } 
+                      })}
                       className="bg-accent hover:bg-accent/90"
                     >
                       <ClipboardCheck className="w-4 h-4 mr-2" />

@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Send, CheckCircle } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle, Award } from "lucide-react";
 
 const suggestions = {
   projectTitle: "Add a clear project title describing your work.",
@@ -16,8 +16,98 @@ const suggestions = {
   results: "Add results or expected outcomes of your project.",
 };
 
+// Extract content from generated HTML
+const extractContentFromHTML = (html: string, prompt: string) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  
+  // Try to extract title from h1, title tag, or first heading
+  let projectTitle = "";
+  const h1 = doc.querySelector("h1");
+  const title = doc.querySelector("title");
+  if (h1) projectTitle = h1.textContent?.trim() || "";
+  else if (title) projectTitle = title.textContent?.trim() || "";
+  
+  // Try to extract problem statement from about/intro sections
+  let problemStatement = "";
+  const aboutSection = doc.querySelector('[class*="about"], [id*="about"], [class*="intro"], [id*="intro"]');
+  if (aboutSection) {
+    const p = aboutSection.querySelector("p");
+    if (p) problemStatement = p.textContent?.trim() || "";
+  }
+  if (!problemStatement) {
+    const firstP = doc.querySelector("p");
+    if (firstP) problemStatement = firstP.textContent?.trim() || "";
+  }
+  
+  // Try to extract objectives from lists or features sections
+  let objectives = "";
+  const featureSection = doc.querySelector('[class*="feature"], [id*="feature"], [class*="objective"], [id*="objective"]');
+  if (featureSection) {
+    const lis = featureSection.querySelectorAll("li");
+    if (lis.length > 0) {
+      objectives = Array.from(lis).map(li => li.textContent?.trim()).filter(Boolean).join("\n");
+    }
+  }
+  if (!objectives) {
+    const ul = doc.querySelector("ul");
+    if (ul) {
+      const lis = ul.querySelectorAll("li");
+      objectives = Array.from(lis).map(li => li.textContent?.trim()).filter(Boolean).join("\n");
+    }
+  }
+  
+  // Try to extract technology stack
+  let technologyStack = "";
+  const techSection = doc.querySelector('[class*="tech"], [id*="tech"], [class*="skill"], [id*="skill"], [class*="stack"], [id*="stack"]');
+  if (techSection) {
+    const spans = techSection.querySelectorAll("span, li, .badge");
+    if (spans.length > 0) {
+      technologyStack = Array.from(spans).map(s => s.textContent?.trim()).filter(Boolean).join(", ");
+    } else {
+      technologyStack = techSection.textContent?.trim() || "";
+    }
+  }
+  
+  // Try to extract methodology from process/approach sections
+  let methodology = "";
+  const methodSection = doc.querySelector('[class*="method"], [id*="method"], [class*="approach"], [id*="approach"], [class*="process"], [id*="process"]');
+  if (methodSection) {
+    const p = methodSection.querySelector("p");
+    if (p) methodology = p.textContent?.trim() || "";
+    else methodology = methodSection.textContent?.trim().substring(0, 500) || "";
+  }
+  
+  // Try to extract results from results/conclusion sections
+  let results = "";
+  const resultsSection = doc.querySelector('[class*="result"], [id*="result"], [class*="conclusion"], [id*="conclusion"], [class*="outcome"], [id*="outcome"]');
+  if (resultsSection) {
+    const p = resultsSection.querySelector("p");
+    if (p) results = p.textContent?.trim() || "";
+    else results = resultsSection.textContent?.trim().substring(0, 500) || "";
+  }
+  
+  // Fallback: use parts of the prompt if content not found
+  if (!projectTitle && prompt) {
+    const firstLine = prompt.split("\n")[0];
+    if (firstLine.length < 100) projectTitle = firstLine;
+  }
+  
+  return {
+    projectTitle,
+    problemStatement,
+    objectives,
+    technologyStack,
+    methodology,
+    results,
+  };
+};
+
 const AcademicReadinessCheck = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { generatedContent?: string; prompt?: string; contentType?: string } | null;
+  
   const [formData, setFormData] = useState({
     projectTitle: "",
     problemStatement: "",
@@ -28,6 +118,21 @@ const AcademicReadinessCheck = () => {
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // Auto-fill form with generated content
+  useEffect(() => {
+    if (state?.generatedContent) {
+      const extracted = extractContentFromHTML(state.generatedContent, state.prompt || "");
+      setFormData({
+        projectTitle: extracted.projectTitle,
+        problemStatement: extracted.problemStatement,
+        objectives: extracted.objectives,
+        technologyStack: extracted.technologyStack,
+        methodology: extracted.methodology,
+        results: extracted.results,
+      });
+    }
+  }, [state]);
+
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -37,6 +142,26 @@ const AcademicReadinessCheck = () => {
     setIsSubmitted(true);
     console.log("Submitted data:", formData);
   };
+
+  // Calculate readiness score (2 points per filled field, max 10)
+  const readinessScore = useMemo(() => {
+    let score = 0;
+    if (formData.projectTitle.trim()) score += 2;
+    if (formData.problemStatement.trim()) score += 2;
+    if (formData.objectives.trim()) score += 2;
+    if (formData.technologyStack.trim()) score += 2;
+    if (formData.methodology.trim()) score += 2;
+    // Results is the 6th field but we cap at 10 (5 fields * 2)
+    // Actually there are 6 fields, so max should be 12, but user wants max 10
+    // So we use 5 fields for scoring (excluding results for simplicity) or adjust
+    // Let's use all 6 fields but cap at 10 by using different weighting
+    // Actually user said "Each filled field gives 2 points, Maximum score = 10"
+    // 10 / 2 = 5 fields. But there are 6 fields. 
+    // I'll interpret as: 5 main fields give 2 points each = 10
+    // Results is bonus or we just do 6 fields but show X/12 or cap at 10
+    // Let's stick to user's spec: max 10, so we only count 5 fields
+    return score; // This gives max 10 with 5 fields above
+  }, [formData]);
 
   return (
     <div className="min-h-screen py-20 px-6 bg-background">
@@ -51,11 +176,28 @@ const AcademicReadinessCheck = () => {
         </Button>
 
         {isSubmitted && (
-          <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-primary" />
-            <p className="text-foreground font-medium">
-              Academic readiness check completed successfully.
-            </p>
+          <div className="space-y-4 mb-6">
+            <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Award className="w-6 h-6 text-primary" />
+                <div>
+                  <p className="text-foreground font-bold text-lg">
+                    Academic Readiness Score: {readinessScore} / 10
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {readinessScore >= 8 ? "Excellent! Your project is well-documented." : 
+                     readinessScore >= 6 ? "Good progress! Consider filling in missing sections." :
+                     "Review the suggestions below to improve your score."}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-accent" />
+              <p className="text-foreground font-medium">
+                Academic readiness check completed successfully.
+              </p>
+            </div>
           </div>
         )}
 
@@ -64,7 +206,9 @@ const AcademicReadinessCheck = () => {
             Academic Readiness Check
           </h1>
           <p className="text-muted-foreground text-lg">
-            Fill in the details below to validate your project structure
+            {state?.generatedContent 
+              ? "Form pre-filled with your generated content. Review and complete missing fields."
+              : "Fill in the details below to validate your project structure"}
           </p>
         </div>
 
