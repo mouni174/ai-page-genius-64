@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, AlertCircle, FileText, Globe, Briefcase } from "lucide-react";
 
 type ContentType = "ppt" | "webpage" | "portfolio" | "";
+
+interface LocationState {
+  generatedContent?: string;
+  prompt?: string;
+  contentType?: "webpage" | "portfolio" | "presentation";
+}
 
 interface FormField {
   key: string;
@@ -49,9 +56,58 @@ const contentTypeLabels: Record<Exclude<ContentType, "">, { label: string; icon:
 };
 
 const ContentReadinessCheck = () => {
+  const location = useLocation();
+  const state = location.state as LocationState | null;
+  
   const [contentType, setContentType] = useState<ContentType>("");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Map generation contentType to form contentType
+  const mapContentType = (type?: string): ContentType => {
+    if (type === "presentation") return "ppt";
+    if (type === "webpage") return "webpage";
+    if (type === "portfolio") return "portfolio";
+    return "";
+  };
+
+  // Prefill form data from passed generation values
+  useEffect(() => {
+    if (state?.contentType) {
+      const mappedType = mapContentType(state.contentType);
+      setContentType(mappedType);
+      
+      // Prefill based on content type using the prompt (description)
+      const prompt = state.prompt || "";
+      
+      if (mappedType === "ppt") {
+        setFormData({
+          projectTitle: prompt ? prompt.split(",")[0]?.trim().slice(0, 100) || "" : "",
+          problemStatement: "",
+          objectives: "",
+          technologyStack: "",
+          methodology: "",
+          results: "",
+        });
+      } else if (mappedType === "webpage") {
+        setFormData({
+          pageTitle: prompt ? prompt.split(",")[0]?.trim().slice(0, 100) || "" : "",
+          purpose: prompt || "",
+          targetAudience: "",
+          keyFeatures: "",
+          technologyStack: "",
+        });
+      } else if (mappedType === "portfolio") {
+        setFormData({
+          portfolioTitle: prompt ? prompt.split(",")[0]?.trim().slice(0, 100) || "" : "",
+          aboutMe: prompt || "",
+          skills: "",
+          projects: "",
+          contact: "",
+        });
+      }
+    }
+  }, [state]);
 
   const handleContentTypeChange = (value: ContentType) => {
     setContentType(value);
