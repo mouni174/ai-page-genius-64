@@ -210,6 +210,21 @@ export const GenerationInterface = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => navigate("/content-readiness", { 
+                        state: { 
+                          generatedContent: generatedCode,
+                          prompt: prompt,
+                          contentType: contentType
+                        } 
+                      })}
+                      className="border-primary/20"
+                    >
+                      <ClipboardCheck className="w-4 h-4 mr-2" />
+                      Content Check
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleExport("pdf")}
                       className="border-primary/20"
                     >
