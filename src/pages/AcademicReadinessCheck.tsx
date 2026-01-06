@@ -1,342 +1,219 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Send, CheckCircle, Award } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-const suggestions = {
-  projectTitle: "Add a clear project title describing your work.",
-  problemStatement: "Describe the problem your project addresses.",
-  objectives: "List the main objectives of your project.",
-  technologyStack: "Include the technologies used in your project.",
-  methodology: "Explain your methodology or approach.",
-  results: "Add results or expected outcomes of your project.",
+type ContentType = "ppt" | "webpage" | "portfolio" | "";
+
+interface FormField {
+  key: string;
+  label: string;
+  placeholder: string;
+  suggestion: string;
+  isTextarea?: boolean;
+}
+
+const formFields: Record<Exclude<ContentType, "">, FormField[]> = {
+  ppt: [
+    { key: "projectTitle", label: "Project Title", placeholder: "Enter your project title", suggestion: "Add a clear project title describing your work.", isTextarea: false },
+    { key: "problemStatement", label: "Problem Statement", placeholder: "What problem does your project solve?", suggestion: "Describe the problem your project addresses.", isTextarea: true },
+    { key: "objectives", label: "Objectives", placeholder: "List your project objectives", suggestion: "List the main objectives of your project.", isTextarea: true },
+    { key: "technologyStack", label: "Technology Stack", placeholder: "e.g., React, Node.js, PostgreSQL", suggestion: "Include the technologies used in your project.", isTextarea: false },
+    { key: "methodology", label: "Methodology / Approach", placeholder: "Describe your methodology", suggestion: "Explain your methodology or approach.", isTextarea: true },
+    { key: "results", label: "Results / Outcome", placeholder: "What were the results?", suggestion: "Add results or expected outcomes of your project.", isTextarea: true },
+  ],
+  webpage: [
+    { key: "pageTitle", label: "Page Title", placeholder: "Enter your page title", suggestion: "Add a clear and descriptive page title.", isTextarea: false },
+    { key: "purpose", label: "Purpose of the Website", placeholder: "What is the main purpose?", suggestion: "Describe the main purpose of your website.", isTextarea: true },
+    { key: "targetAudience", label: "Target Audience", placeholder: "Who is your target audience?", suggestion: "Define your target audience clearly.", isTextarea: true },
+    { key: "keyFeatures", label: "Key Features / Sections", placeholder: "List main features or sections", suggestion: "List the key features or sections of your website.", isTextarea: true },
+    { key: "technologyStack", label: "Technology Stack", placeholder: "e.g., React, Tailwind, Supabase", suggestion: "Include the technologies used for your website.", isTextarea: false },
+  ],
+  portfolio: [
+    { key: "portfolioTitle", label: "Name / Portfolio Title", placeholder: "Enter your name or portfolio title", suggestion: "Add your name or a clear portfolio title.", isTextarea: false },
+    { key: "aboutMe", label: "About Me Summary", placeholder: "Write a brief about yourself", suggestion: "Write a brief summary about yourself.", isTextarea: true },
+    { key: "skills", label: "Skills / Technologies", placeholder: "List your skills and technologies", suggestion: "List your key skills and technologies.", isTextarea: true },
+    { key: "projects", label: "Projects Section", placeholder: "Describe your notable projects", suggestion: "Add descriptions of your notable projects.", isTextarea: true },
+    { key: "contact", label: "Contact Information", placeholder: "Email, LinkedIn, GitHub, etc.", suggestion: "Include your contact information.", isTextarea: false },
+  ],
 };
 
-// Extract content from generated HTML
-const extractContentFromHTML = (html: string, prompt: string) => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  
-  // Try to extract title from h1, title tag, or first heading
-  let projectTitle = "";
-  const h1 = doc.querySelector("h1");
-  const title = doc.querySelector("title");
-  if (h1) projectTitle = h1.textContent?.trim() || "";
-  else if (title) projectTitle = title.textContent?.trim() || "";
-  
-  // Try to extract problem statement from about/intro sections
-  let problemStatement = "";
-  const aboutSection = doc.querySelector('[class*="about"], [id*="about"], [class*="intro"], [id*="intro"]');
-  if (aboutSection) {
-    const p = aboutSection.querySelector("p");
-    if (p) problemStatement = p.textContent?.trim() || "";
-  }
-  if (!problemStatement) {
-    const firstP = doc.querySelector("p");
-    if (firstP) problemStatement = firstP.textContent?.trim() || "";
-  }
-  
-  // Try to extract objectives from lists or features sections
-  let objectives = "";
-  const featureSection = doc.querySelector('[class*="feature"], [id*="feature"], [class*="objective"], [id*="objective"]');
-  if (featureSection) {
-    const lis = featureSection.querySelectorAll("li");
-    if (lis.length > 0) {
-      objectives = Array.from(lis).map(li => li.textContent?.trim()).filter(Boolean).join("\n");
-    }
-  }
-  if (!objectives) {
-    const ul = doc.querySelector("ul");
-    if (ul) {
-      const lis = ul.querySelectorAll("li");
-      objectives = Array.from(lis).map(li => li.textContent?.trim()).filter(Boolean).join("\n");
-    }
-  }
-  
-  // Try to extract technology stack
-  let technologyStack = "";
-  const techSection = doc.querySelector('[class*="tech"], [id*="tech"], [class*="skill"], [id*="skill"], [class*="stack"], [id*="stack"]');
-  if (techSection) {
-    const spans = techSection.querySelectorAll("span, li, .badge");
-    if (spans.length > 0) {
-      technologyStack = Array.from(spans).map(s => s.textContent?.trim()).filter(Boolean).join(", ");
-    } else {
-      technologyStack = techSection.textContent?.trim() || "";
-    }
-  }
-  
-  // Try to extract methodology from process/approach sections
-  let methodology = "";
-  const methodSection = doc.querySelector('[class*="method"], [id*="method"], [class*="approach"], [id*="approach"], [class*="process"], [id*="process"]');
-  if (methodSection) {
-    const p = methodSection.querySelector("p");
-    if (p) methodology = p.textContent?.trim() || "";
-    else methodology = methodSection.textContent?.trim().substring(0, 500) || "";
-  }
-  
-  // Try to extract results from results/conclusion sections
-  let results = "";
-  const resultsSection = doc.querySelector('[class*="result"], [id*="result"], [class*="conclusion"], [id*="conclusion"], [class*="outcome"], [id*="outcome"]');
-  if (resultsSection) {
-    const p = resultsSection.querySelector("p");
-    if (p) results = p.textContent?.trim() || "";
-    else results = resultsSection.textContent?.trim().substring(0, 500) || "";
-  }
-  
-  // Fallback: use parts of the prompt if content not found
-  if (!projectTitle && prompt) {
-    const firstLine = prompt.split("\n")[0];
-    if (firstLine.length < 100) projectTitle = firstLine;
-  }
-  
-  return {
-    projectTitle,
-    problemStatement,
-    objectives,
-    technologyStack,
-    methodology,
-    results,
-  };
+const contentTypeLabels: Record<Exclude<ContentType, "">, string> = {
+  ppt: "PPT / Academic Project",
+  webpage: "Webpage",
+  portfolio: "Portfolio",
 };
 
 const AcademicReadinessCheck = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state as { generatedContent?: string; prompt?: string; contentType?: string } | null;
-  
-  const [formData, setFormData] = useState({
-    projectTitle: "",
-    problemStatement: "",
-    objectives: "",
-    technologyStack: "",
-    methodology: "",
-    results: "",
-  });
+  const [contentType, setContentType] = useState<ContentType>("");
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // Auto-fill form with generated content
-  useEffect(() => {
-    if (state?.generatedContent) {
-      const extracted = extractContentFromHTML(state.generatedContent, state.prompt || "");
-      setFormData({
-        projectTitle: extracted.projectTitle,
-        problemStatement: extracted.problemStatement,
-        objectives: extracted.objectives,
-        technologyStack: extracted.technologyStack,
-        methodology: extracted.methodology,
-        results: extracted.results,
-      });
-    }
-  }, [state]);
+  const currentFields = contentType ? formFields[contentType] : [];
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleContentTypeChange = (value: ContentType) => {
+    setContentType(value);
+    setFormData({});
+    setIsSubmitted(false);
+  };
+
+  const handleChange = (key: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitted(true);
-    console.log("Submitted data:", formData);
   };
 
-  // Calculate readiness score (2 points per filled field, max 10)
+  const handleReset = () => {
+    setFormData({});
+    setIsSubmitted(false);
+  };
+
   const readinessScore = useMemo(() => {
-    let score = 0;
-    if (formData.projectTitle.trim()) score += 2;
-    if (formData.problemStatement.trim()) score += 2;
-    if (formData.objectives.trim()) score += 2;
-    if (formData.technologyStack.trim()) score += 2;
-    if (formData.methodology.trim()) score += 2;
-    // Results is the 6th field but we cap at 10 (5 fields * 2)
-    // Actually there are 6 fields, so max should be 12, but user wants max 10
-    // So we use 5 fields for scoring (excluding results for simplicity) or adjust
-    // Let's use all 6 fields but cap at 10 by using different weighting
-    // Actually user said "Each filled field gives 2 points, Maximum score = 10"
-    // 10 / 2 = 5 fields. But there are 6 fields. 
-    // I'll interpret as: 5 main fields give 2 points each = 10
-    // Results is bonus or we just do 6 fields but show X/12 or cap at 10
-    // Let's stick to user's spec: max 10, so we only count 5 fields
-    return score; // This gives max 10 with 5 fields above
-  }, [formData]);
+    if (!contentType) return 0;
+    const filledFields = currentFields.filter((field) => formData[field.key]?.trim()).length;
+    return Math.min(filledFields * 2, 10);
+  }, [formData, currentFields, contentType]);
+
+  const getScoreColor = () => {
+    if (readinessScore >= 8) return "text-green-600";
+    if (readinessScore >= 6) return "text-yellow-600";
+    return "text-red-600";
+  };
+
+  const getScoreMessage = () => {
+    if (readinessScore >= 8) return "Great! Your content is well-prepared.";
+    if (readinessScore >= 6) return "Good progress! Consider filling in the missing fields.";
+    return "More details needed. Please complete the missing fields.";
+  };
 
   return (
-    <div className="min-h-screen py-20 px-6 bg-background">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
         <Button
           variant="ghost"
           onClick={() => navigate("/")}
-          className="mb-6 text-muted-foreground hover:text-foreground"
+          className="mb-6 flex items-center gap-2"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="h-4 w-4" />
           Back to Generator
         </Button>
 
-        {isSubmitted && (
-          <div className="space-y-4 mb-6">
-            <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Award className="w-6 h-6 text-primary" />
-                <div>
-                  <p className="text-foreground font-bold text-lg">
-                    Academic Readiness Score: {readinessScore} / 10
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {readinessScore >= 8 ? "Excellent! Your project is well-documented." : 
-                     readinessScore >= 6 ? "Good progress! Consider filling in missing sections." :
-                     "Review the suggestions below to improve your score."}
-                  </p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              Academic Readiness Check
+            </CardTitle>
+            <p className="text-muted-foreground text-center">
+              Evaluate your academic and professional readiness with guided suggestions
+            </p>
+          </CardHeader>
+
+          <CardContent>
+            {/* Content Type Selection */}
+            <div className="mb-6">
+              <Label htmlFor="contentType" className="text-base font-medium">
+                Select Content Type
+              </Label>
+              <Select value={contentType} onValueChange={handleContentTypeChange}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Choose a content type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ppt">PPT / Academic Project</SelectItem>
+                  <SelectItem value="webpage">Webpage</SelectItem>
+                  <SelectItem value="portfolio">Portfolio</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Success Message */}
+            {isSubmitted && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 text-green-700 mb-2">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">
+                    Academic readiness check completed successfully.
+                  </span>
                 </div>
+                <div className={`text-lg font-bold ${getScoreColor()}`}>
+                  Readiness Score: {readinessScore} / 10
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {getScoreMessage()}
+                </p>
               </div>
-            </div>
-            <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-accent" />
-              <p className="text-foreground font-medium">
-                Academic readiness check completed successfully.
-              </p>
-            </div>
-          </div>
-        )}
+            )}
 
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-            Academic Readiness Check
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            {state?.generatedContent 
-              ? "Form pre-filled with your generated content. Review and complete missing fields."
-              : "Fill in the details below to validate your project structure"}
-          </p>
-        </div>
+            {/* Dynamic Form */}
+            {contentType && (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="text-sm text-muted-foreground mb-4 p-3 bg-muted rounded-lg">
+                  Filling out: <strong>{contentTypeLabels[contentType]}</strong>
+                </div>
 
-        <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="projectTitle">Project Title</Label>
-              <Input
-                id="projectTitle"
-                placeholder="Enter your project title"
-                value={formData.projectTitle}
-                onChange={(e) => handleChange("projectTitle", e.target.value)}
-                className="bg-background/50 border-primary/20 focus:border-primary/40"
-              />
-              <p className="text-xs text-muted-foreground">
-                This becomes the main heading for your PPT, webpage hero section, or portfolio header.
-              </p>
-              {isSubmitted && !formData.projectTitle.trim() && (
-                <p className="text-xs text-amber-500 mt-1">
-                  💡 {suggestions.projectTitle}
-                </p>
-              )}
-            </div>
+                {currentFields.map((field) => {
+                  const value = formData[field.key] || "";
+                  const isEmpty = isSubmitted && !value.trim();
 
-            <div className="space-y-2">
-              <Label htmlFor="problemStatement">Problem Statement</Label>
-              <Textarea
-                id="problemStatement"
-                placeholder="Describe the problem your project addresses"
-                value={formData.problemStatement}
-                onChange={(e) => handleChange("problemStatement", e.target.value)}
-                className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used as the introduction slide, "About" section, or project overview in portfolios.
-              </p>
-              {isSubmitted && !formData.problemStatement.trim() && (
-                <p className="text-xs text-amber-500 mt-1">
-                  💡 {suggestions.problemStatement}
-                </p>
-              )}
-            </div>
+                  return (
+                    <div key={field.key} className="space-y-2">
+                      <Label htmlFor={field.key} className="text-sm font-medium">
+                        {field.label}
+                      </Label>
+                      {field.isTextarea ? (
+                        <Textarea
+                          id={field.key}
+                          value={value}
+                          onChange={(e) => handleChange(field.key, e.target.value)}
+                          placeholder={field.placeholder}
+                          className="min-h-[100px]"
+                        />
+                      ) : (
+                        <Input
+                          id={field.key}
+                          value={value}
+                          onChange={(e) => handleChange(field.key, e.target.value)}
+                          placeholder={field.placeholder}
+                        />
+                      )}
+                      {isEmpty && (
+                        <div className="flex items-start gap-2 text-amber-600 text-sm bg-amber-50 p-2 rounded">
+                          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>{field.suggestion}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
-            <div className="space-y-2">
-              <Label htmlFor="objectives">Objectives</Label>
-              <Textarea
-                id="objectives"
-                placeholder="List the main objectives of your project"
-                value={formData.objectives}
-                onChange={(e) => handleChange("objectives", e.target.value)}
-                className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
-              />
-              <p className="text-xs text-muted-foreground">
-                Becomes bullet points in PPTs, feature highlights on webpages, or goals in portfolios.
-              </p>
-              {isSubmitted && !formData.objectives.trim() && (
-                <p className="text-xs text-amber-500 mt-1">
-                  💡 {suggestions.objectives}
-                </p>
-              )}
-            </div>
+                <div className="flex gap-3 pt-4">
+                  <Button type="submit" className="flex-1">
+                    Submit
+                  </Button>
+                  {isSubmitted && (
+                    <Button type="button" variant="outline" onClick={handleReset}>
+                      Reset Form
+                    </Button>
+                  )}
+                </div>
+              </form>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="technologyStack">Technology Stack</Label>
-              <Input
-                id="technologyStack"
-                placeholder="E.g., React, Node.js, PostgreSQL, Python"
-                value={formData.technologyStack}
-                onChange={(e) => handleChange("technologyStack", e.target.value)}
-                className="bg-background/50 border-primary/20 focus:border-primary/40"
-              />
-              <p className="text-xs text-muted-foreground">
-                Displayed as tech badges, skill icons, or tools section across all formats.
-              </p>
-              {isSubmitted && !formData.technologyStack.trim() && (
-                <p className="text-xs text-amber-500 mt-1">
-                  💡 {suggestions.technologyStack}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="methodology">Methodology / Approach</Label>
-              <Textarea
-                id="methodology"
-                placeholder="Describe your methodology or approach"
-                value={formData.methodology}
-                onChange={(e) => handleChange("methodology", e.target.value)}
-                className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
-              />
-              <p className="text-xs text-muted-foreground">
-                Forms the process flow slide, "How It Works" section, or approach details in portfolios.
-              </p>
-              {isSubmitted && !formData.methodology.trim() && (
-                <p className="text-xs text-amber-500 mt-1">
-                  💡 {suggestions.methodology}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="results">Results / Outcome</Label>
-              <Textarea
-                id="results"
-                placeholder="Describe the expected or achieved results"
-                value={formData.results}
-                onChange={(e) => handleChange("results", e.target.value)}
-                className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used for conclusion slides, results sections, or achievement highlights in portfolios.
-              </p>
-              {isSubmitted && !formData.results.trim() && (
-                <p className="text-xs text-amber-500 mt-1">
-                  💡 {suggestions.results}
-                </p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full bg-primary hover:bg-primary/90 shadow-glow"
-              size="lg"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Submit
-            </Button>
-          </form>
+            {!contentType && (
+              <div className="text-center py-8 text-muted-foreground">
+                Please select a content type to begin the readiness check.
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     </div>
